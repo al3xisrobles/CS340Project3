@@ -10,6 +10,7 @@ class Node:
         pass
 
     def link_has_been_updated(self, neighbor, latency):
+        # neighbor is an integer
         pass
 
     def process_incoming_routing_message(self, m: str):
@@ -27,6 +28,7 @@ class Node:
 
     def send_to_neighbor(self, neighbor, message: str):
         from simulator.topology import Send_To_Neighbor
+        # neighbor is an integer
         Send_To_Neighbor(self, neighbor, message)
 
     def get_time(self):
@@ -42,4 +44,3 @@ class Link:
 
     def __str__(self):
         return "Link: " + str(self.node1) + " " + str(self.node2) + " Latency: " + str(self.latency) + "\n"
-
