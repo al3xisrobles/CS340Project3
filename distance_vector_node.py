@@ -12,16 +12,28 @@ class Distance_Vector_Node(Node):
 
         # Each DV node must store:
         # 1. Its outbound links (who do they connect to, and at what cost?)
-        self.outbound_links = {}
+        self.outbound_links = {} # neighbor_id -> cost
+        #                   = {4: 2,
+        #                      2: 2,
+        #                      1: 2}
 
         # 2. Each neighbor’s latest DV (who can I reach through neighbors?)
-        self.neighbors_dv = {}
+        self.neighbors_dv = {} # neighbor_id -> {link -> [cost, AS_PATH]}
+        #                 = {4: {3: [2, [3]],
+        #                        1: [4, [3, 1]],
+        #                        2: [4, [3, 2]]},
+        #                    2: {3: [2, [3]],
+        #                        1: [2, [1]],
+        #                        0: [4, [1, 0]]},
+        #                    1: {0: [2, [0]],
+        #                        2: [2, [2]],
+        #                        3: [2, [3]]}}
 
         # 3. Its own distance vector (DV) to each destination
         self.dv = {}
-
-        # Each DV should include the full routing path for each destination
-        # (AS_PATH in BGP)
+        #       = {4: [2, [4]],
+        #          2: [2, [2]],
+        #          1: [2, [1]]}
 
     # Return a string
     def __str__(self):
@@ -34,29 +46,57 @@ class Distance_Vector_Node(Node):
         # 2. Recalculates distance vector
         # 3. If DV changed, notify neighbors (in JSON format, with timestamp)
         """
-        # latency = -1 if delete a link
+        # If latency = -1, link is to be deleted
         if latency == -1:
-            del self.outbound_links[neighbor]
-            del self.neighbors_dv[neighbor]
-        else:
-            self.outbound_links[neighbor] = latency
-            self.neighbors_dv[neighbor] = {n: c for n, c in self.outbound_links.items() if n != neighbor}
 
+            # Remove neighbor from outgoing_links
+            del self.outbound_links[neighbor]
+
+            # Remove neighbor from neighbor_dv
+            del self.neighbors_dv[neighbor]
+
+        # Link's cost has been changed
+        else:
+
+            # Update cost to neighbor
+            self.outbound_links[neighbor] = latency
+
+            # Update neighbor's DV
+            new_neighbors_dv = {}
+            for neighbor_dv in self.neighbors_dv:
+                new_neighbors_dv[neighbor_dv] = self.neighbors_dv[neighbor_dv]
+                for n in new_neighbors_dv[neighbor_dv]:
+                    if n == neighbor:
+                        new_neighbors_dv[neighbor_dv][n][0] = latency
+            self.neighbors_dv = new_neighbors_dv
+
+        # Recalcluate DV
         dv_changed = self._recalculate_dv()
 
+        # If node's recalculated DV is changed, send to all neighbors
         if dv_changed:
             self._send_dv_to_neighbors()
 
     # You must record the new information within the node, and (depending on
     # the message contents) you may need to send messages to neighbors.
     def process_incoming_routing_message(self, m):
+
+        # Message
         message = json.loads(m)
+
+        # Sender ID
         sender_id = message["sender_id"]
+
+        # DV
         dv = message["dv"]
+
+        # ********** FIX *********
         self.neighbors_dv[sender_id] = dv
 
+        # Recalculate DV
         dv_changed = self._recalculate_dv()
 
+        # Send DV to neighbors
         if dv_changed:
             self._send_dv_to_neighbors()
 
@@ -103,7 +143,7 @@ class Distance_Vector_Node(Node):
 
     # Send DV to all neighbors
     def _send_dv_to_neighbors(self):
-        dv = json.dumps({"from": self.id,
-                         "vector": self.dv[self.id],
+        dv = json.dumps({"sender_id": self.id,
+                         "dv": self.dv,
                          "timestamp": self.get_time()})
         self.send_to_neighbors(dv)
