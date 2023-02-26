@@ -11,6 +11,8 @@ import time
 
 # deleting nodes, and when links get longer
 
+# We need of the form {(src,dst):(seq,latency)}?
+
 
 # STEPS:
 # link_has_been_updated gets called
@@ -57,7 +59,7 @@ class Distance_Vector_Node(Node):
 
     # Return a string
     def __str__(self):
-        return f"Node {self.id}: outbound_links={self.outbound_links} \n dv={self.dv} \n neighbors_dv={self.neighbors_dv}"
+        return f"Node {self.id}: outbound_links={self.outbound_links} \n dv={self.dv} \n neighbors_dv={self.neighbors_dv} \n"
 
     # When the link costs change, update its DV and notify neighbors
     # called for nodes at both ends of link that is updated
@@ -101,8 +103,6 @@ class Distance_Vector_Node(Node):
                 self.dv["dv"][neighbor][1] = [neighbor]
                 send_to_neighbors = True
 
-
-
         # Recalcluate DV
         dv_changed = self._recalculate_dv(neighbor)
 
@@ -123,6 +123,9 @@ class Distance_Vector_Node(Node):
 
         # Parse DV from sender
         dv = message["dv"]
+
+        # Cast each 
+        dv["dv"] =  {int(k): v for k, v in dv["dv"].items()}
 
         # store DV in its correct slot
         # Store DV if neighbors_dv does not have the dv or if the this is the latest dv sent from this neighbor
@@ -183,13 +186,14 @@ class Distance_Vector_Node(Node):
         # For each node that the node_to_check connects to
         for dest, (checking_latency, checking_path) in checking_dv.items():
             
+            # Cast destination to int
+            dest = int(dest)
+            
             # Don't want to calculate distance to current node
             if dest == self.id:
                 continue
 
             # Ensure that neighbors' DV's vertices are in current node's DV
-
-            # SOMETHING WEIRD HAPPENING HERE I THINK
             if dest not in list(self.dv["dv"].keys()):
                 self.dv["dv"][dest] = [float('inf'), []]
 
