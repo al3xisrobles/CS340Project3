@@ -16,7 +16,7 @@ import time
 
 # STEPS:
 # link_has_been_updated gets called
-# update outbound link instance variable 
+# update outbound link instance variable
 # recalculate its own dv
 # if it changes, send it to its neighbors
 
@@ -75,7 +75,6 @@ class Distance_Vector_Node(Node):
         # to self.dv in this function), but then nothing changes in recalculate_dv
         send_to_neighbors = False
 
-
         # If latency = -1, link is to be deleted
         if latency == -1:
 
@@ -124,7 +123,7 @@ class Distance_Vector_Node(Node):
         # Parse DV from sender
         dv = message["dv"]
 
-        # Cast each 
+        # Cast each
         dv["dv"] =  {int(k): v for k, v in dv["dv"].items()}
 
         # store DV in its correct slot
@@ -179,16 +178,16 @@ class Distance_Vector_Node(Node):
         # Cost from current node to node_to_check
         dist_to_checking_node = self.dv["dv"][node_to_check][0]
 
-        # Get updated node_to_check's DV (dictionary) from current 
+        # Get updated node_to_check's DV (dictionary) from current
         # node's neighbors' data
         checking_dv = self.neighbors_dv[node_to_check]["dv"]
 
         # For each node that the node_to_check connects to
         for dest, (checking_latency, checking_path) in checking_dv.items():
-            
+
             # Cast destination to int
             dest = int(dest)
-            
+
             # Don't want to calculate distance to current node
             if dest == self.id:
                 continue
@@ -200,14 +199,17 @@ class Distance_Vector_Node(Node):
             # Calculate the cost from current node to the dest node, through node_to_check
             new_latency_to_dest = dist_to_checking_node + checking_latency
 
-            # If this distance is less than current node to checking node, update my DV
-            if new_latency_to_dest < self.dv["dv"][dest][0]:
 
-                # Ensure that we are not in a loop
-                if self.id not in checking_path:
-                    
-                    # Update our DV with new cost and path to destination
-                    self.dv["dv"][dest] = [new_latency_to_dest, [node_to_check] + checking_path]
+            # If this distance is less than current node to checking node, update my DV
+            # (it should update regardless of if the link latency is smaller or larger)
+
+            # if new_latency_to_dest < self.dv["dv"][dest][0]:
+
+            # Ensure that we are not in a loop
+            if self.id not in checking_path:
+
+                # Update our DV with new cost and path to destination
+                self.dv["dv"][dest] = [new_latency_to_dest, [node_to_check] + checking_path]
 
         # Return True if dv has been updated, False otherwise
         return old_dv != self.dv["dv"]
