@@ -19,7 +19,7 @@ class Link_State_Node(Node):
                         #                                   "seq num": int}, }
 
         # Full view of graph
-        self.graph = {} # { nodeID -> { nodeID -> latency, }, }
+        self.graph = {} # { frozenset({nodeID, nodeID}) -> latency }
 
     def __str__(self):
         """
