@@ -102,7 +102,7 @@ class Distance_Vector_Node(Node):
                                                "timestamp": self.get_time()}
 
         # Recalcluate DV
-        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys())
+        dv_changed = self._recalculate_dv(self.outbound_links.keys())
 
 
         # If node's recalculated DV is changed, send to all neighbors
@@ -114,7 +114,6 @@ class Distance_Vector_Node(Node):
     # send the entire DV, maybe add the dest that changed
     def process_incoming_routing_message(self, m):
         
-
         # Message
         message = json.loads(m)
 
@@ -133,16 +132,15 @@ class Distance_Vector_Node(Node):
         if sender_id not in self.neighbors_dv.keys() or dv["timestamp"] >= self.neighbors_dv[sender_id]["timestamp"]:
             self.neighbors_dv[sender_id] = dv
 
-        # For every reachable node of the sender, add it to your dv
-        for dest in dv["dv"].keys():
-            if dest not in self.dv["dv"].keys():
-                self.dv["dv"][dest] = [float('inf'), []]
+            # For every reachable node of the sender, add it to your dv
+            for dest in dv["dv"].keys():
+                if dest not in self.dv["dv"].keys():
+                    self.dv["dv"][dest] = [float('inf'), []]
 
 
         # A link will have been decreased so we want to check if its faster to go through that node
         # Recalculate DV
-        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys())
-
+        dv_changed = self._recalculate_dv(self.outbound_links.keys())
 
         # Send DV to neighbors
         if dv_changed:
@@ -160,7 +158,7 @@ class Distance_Vector_Node(Node):
 
         return dest_path[0]
     
-    def _recalculate_dv_gpt(self, nodes_to_check):
+    def _recalculate_dv(self, nodes_to_check):
 
         # Save node's current DV (dictionary)
         old_dv = {key: value[:] for key, value in self.dv["dv"].items()}
@@ -210,7 +208,8 @@ class Distance_Vector_Node(Node):
             # Set you self.dv to the shortest path
             self.dv["dv"][dest_node] = [min_latency, assoc_path]
 
-        return old_dv != self.dv["dv"]
+        return old_dv != self.dv["dv"] 
+
 
     # Send DV to all neighbors
     def _send_dv_to_neighbors(self):
