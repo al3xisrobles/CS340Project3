@@ -72,10 +72,7 @@ class Distance_Vector_Node(Node):
         # Variable to track whether we want to send our own dv to our neighbors
         # Applicable when latency to neighbor decreases (we make the change
         # to self.dv in this function), but then nothing changes in recalculate_dv
-        # send_to_neighbors = False
         
-        
-        old_dv = self.dv["dv"].copy()
 
         # If latency = -1, link is to be deleted
         if latency == -1:
@@ -86,15 +83,6 @@ class Distance_Vector_Node(Node):
             # Remove neighbor from neighbor_dv
             del self.neighbors_dv[neighbor]
 
-            # Make path to neighbor infinity in self.dv
-            self.dv["dv"][neighbor] = [float('inf'), []]
-
-
-            # Update current node's DV, send updated DV to neighbors
-            # dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys(), old_dv)
-            # if dv_changed:
-            #     self._send_dv_to_neighbors()
-            # return
 
         # Link's cost has been changed
         else:
@@ -105,10 +93,7 @@ class Distance_Vector_Node(Node):
             # For initialization: add neighbor to DV
             if neighbor not in self.dv["dv"].keys():
                 self.dv["dv"][neighbor] = [float('inf'), []]
-                old_dv = self.dv["dv"].copy()
 
-
-            self.dv["dv"][neighbor] = [latency, [neighbor]]
 
 
             # For initialization: add neighbor's DV to neighbors_dv
@@ -117,10 +102,11 @@ class Distance_Vector_Node(Node):
                                                "timestamp": self.get_time()}
 
         # Recalcluate DV
-        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys(), old_dv)
+        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys())
+
 
         # If node's recalculated DV is changed, send to all neighbors
-        if dv_changed:  
+        if dv_changed: 
             self._send_dv_to_neighbors()
 
     # You must record the new information within the node, and (depending on
@@ -128,8 +114,6 @@ class Distance_Vector_Node(Node):
     # send the entire DV, maybe add the dest that changed
     def process_incoming_routing_message(self, m):
         
-        old_dv = self.dv["dv"].copy()
-
 
         # Message
         message = json.loads(m)
@@ -140,7 +124,6 @@ class Distance_Vector_Node(Node):
         # Parse DV from sender
         dv = message["dv"]
 
-        # poisoned = message["poisoned"]
 
         # Cast each
         dv["dv"] =  {int(k): v for k, v in dv["dv"].items()}
@@ -158,7 +141,7 @@ class Distance_Vector_Node(Node):
 
         # A link will have been decreased so we want to check if its faster to go through that node
         # Recalculate DV
-        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys(), old_dv)
+        dv_changed = self._recalculate_dv_gpt(self.outbound_links.keys())
 
 
         # Send DV to neighbors
@@ -177,57 +160,57 @@ class Distance_Vector_Node(Node):
 
         return dest_path[0]
     
-    def _recalculate_dv_gpt(self, nodes_to_check, old_dv):
+    def _recalculate_dv_gpt(self, nodes_to_check):
 
         # Save node's current DV (dictionary)
-        # old_dv = self.dv["dv"].copy()
+        old_dv = {key: value[:] for key, value in self.dv["dv"].items()}
 
         # Recalculate distance for every node in self.dv
         for dest_node in self.dv["dv"].keys():
 
+            # Cast to be careful
             dest_node = int(dest_node)
 
-            # if dest_node == link_number:
-            #     continue
-
+            # Don't want to calculate distance to ourself
             if dest_node == self.id:
                 continue
 
+            # Start with minimum latency as infinity
             min_latency = float('inf')
             assoc_path = []
-
-            # maybe delete this
-            # self.dv["dv"][dest_node] = [min_latency, assoc_path]
 
 
             # for neighbor, cost in self.outbound_links.items():
             for neighbor in nodes_to_check:
 
-                cost = self.outbound_links[neighbor]
+                # Calculate the latency to neighbor you are checking
+                cost = self.outbound_links[neighbor] if neighbor in self.outbound_links.keys() else float('inf')
 
-                # if neighbor == dest_node:
-                #     continue
-
+                # If you don't know neighbor's DV or neighbor cannot reach desired destination node, continue
                 if neighbor not in self.neighbors_dv.keys() or dest_node not in self.neighbors_dv[neighbor]["dv"].keys():
                     continue
                 
+                # Calculate complete path latency
                 path_latency = cost + self.neighbors_dv[neighbor]["dv"][dest_node][0]
 
+                # If is infinity, it is meaningless, cannot reach destination
                 if path_latency == float('inf'):
                     continue
 
-                min_latency = min(min_latency, path_latency) if self.id not in self.neighbors_dv[neighbor]["dv"][dest_node][1] else min_latency
+                # If you are not in the path to get to the destination node
+                if self.id not in self.neighbors_dv[neighbor]["dv"][dest_node][1]:
 
-                if min_latency == path_latency:
-                    assoc_path = [neighbor] + self.neighbors_dv[neighbor]["dv"][dest_node][1] if self.id not in self.neighbors_dv[neighbor]["dv"][dest_node][1] else assoc_path
+                    # See if path you are on now is less than you're previous minimum latency
+                    min_latency = min(min_latency, path_latency)
 
+                    # If current path is now the smallest, update the path list
+                    if min_latency == path_latency:
+                        assoc_path = [neighbor] + self.neighbors_dv[neighbor]["dv"][dest_node][1]
             
+            # Set you self.dv to the shortest path
             self.dv["dv"][dest_node] = [min_latency, assoc_path]
 
         return old_dv != self.dv["dv"]
-
-    
-
 
     # Send DV to all neighbors
     def _send_dv_to_neighbors(self):
